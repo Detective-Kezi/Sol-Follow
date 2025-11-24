@@ -1,4 +1,3 @@
-// src/context/SocketContext.jsx — FINAL RAILWAY-PROOF VERSION
 import { createContext, useContext, useEffect, useState } from 'react'
 import io from 'socket.io-client'
 
@@ -16,55 +15,37 @@ export function SocketProvider({ children }) {
   })
 
   useEffect(() => {
-    // FORCE HTTPS IN PRODUCTION — NO HTTP EVER
-    const rawUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001"
-    const BACKEND_URL = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`
+    // FINAL: Always use HTTPS on Railway, fallback to localhost
+    const raw = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001"
+    const BACKEND_URL = raw.startsWith('http') ? raw.replace('http://', 'https://') : `https://${raw}`
 
-    console.log('Attempting socket connection to:', BACKEND_URL)
+    console.log('Connecting to backend →', BACKEND_URL)
 
     const newSocket = io(BACKEND_URL, {
-      transports: ['websocket'],           // Force WebSocket (skip polling hell)
+      transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      timeout: 20000,
-      forceNew: true
+      timeout: 20000
     })
 
     newSocket.on('connect', () => {
-      console.log('SOCKET CONNECTED SUCCESSFULLY →', BACKEND_URL)
+      console.log('SOCKET GREEN — CONNECTED TO BACKEND')
     })
 
     newSocket.on('connect_error', (err) => {
-      console.error('Socket connection failed:', err.message)
+      console.error('Socket failed:', err.message)
     })
 
-    newSocket.on('init', (serverData) => {
-      console.log('Init data received from server')
-      setData(serverData)
-    })
-
-    newSocket.on('newTrade', (trade) => {
-      setData(prev => ({ ...prev, trades: [trade, ...prev.trades.slice(0, 49)] }))
-    })
-
-    newSocket.on('sold', (sell) => {
-      setData(prev => ({ ...prev, trades: [sell, ...prev.trades] }))
-    })
-
-    newSocket.on('positionsUpdate', (positions) => {
-      setData(prev => ({ ...prev, positions }))
-    })
-
-    newSocket.on('goldenAlphasUpdate', (alphas) => {
-      setData(prev => ({ ...prev, goldenAlphas: alphas }))
-    })
+    newSocket.on('init', (d) => setData(d))
+    newSocket.on('newTrade', (t) => setData(prev => ({ ...prev, trades: [t, ...prev.trades.slice(0,49)] })))
+    newSocket.on('sold', (s) => setData(prev => ({ ...prev, trades: [s, ...prev.trades] })))
+    newSocket.on('positionsUpdate', (p) => setData(prev => ({ ...prev, positions: p })))
+    newSocket.on('goldenAlphasUpdate', (a) => setData(prev => ({ ...prev, goldenAlphas: a })))
 
     setSocket(newSocket)
 
-    return () => {
-      newSocket.close()
-    }
+    return () => newSocket.close()
   }, [])
 
   return (
@@ -76,4 +57,4 @@ export function SocketProvider({ children }) {
 
 export function useSocket() {
   return useContext(SocketContext)
-      }
+}
