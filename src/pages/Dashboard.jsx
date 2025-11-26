@@ -1,13 +1,37 @@
-import { useSocket } from '../context/SocketContext'
+// frontend/src/pages/Dashboard.jsx — FINAL v12 (HTTP + AXIOS)
+import { useState, useEffect } from 'react'
+import API from '../api'
 import TradeCard from '../components/TradeCard'
 import MultiplierBadge from '../components/MultiplierBadge'
 import { TrendingUp, Wallet, Zap, Shield } from 'lucide-react'
 
 export default function Dashboard() {
-  const { data } = useSocket()
+  const [data, setData] = useState({
+    trades: [],
+    positions: [],
+    totalProfit: 0,
+    watched: [],
+    goldenAlphas: []
+  })
+
+  const loadData = async () => {
+    try {
+      const res = await API.get('/api/data')
+      setData(res.data)
+    } catch (err) {
+      console.error("Failed to load data:", err.message)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+    const interval = setInterval(loadData, 8000) // refresh every 8s
+    return () => clearInterval(interval)
+  }, [])
+
   const { trades = [], positions = [], totalProfit = 0, watched = [] } = data
 
-  // Calculate Win Rate dynamically
+  // Dynamic Win Rate
   const totalTrades = trades.length
   const wins = trades.filter(t => t.pnl && t.pnl.startsWith('+')).length
   const winRate = totalTrades > 0 ? ((wins / totalTrades) * 100).toFixed(1) : 0
@@ -28,7 +52,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats (100% dynamic) */}
+      {/* Stats — 100% REAL DATA */}
       <div className="grid grid-cols-4 gap-8">
         <div className="card text-center">
           <TrendingUp size={60} className="text-green mx-auto mb-4" />
@@ -56,72 +80,69 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Live Positions — NOW WITH REAL PRICE & PnL */}
+      {/* Live Positions */}
       <div>
         <h2 className="text-4xl font-bold mb-8 text-center">Live Positions</h2>
-        <div className="card">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-gray-400 border-b border-gray-700">
-                <th className="pb-4">Token</th>
-                <th className="pb-4">Amount</th>
-                <th className="pb-4">Avg Buy</th>
-                <th className="pb-4">Current</th>
-                <th className="pb-4">PnL %</th>
-                <th className="pb-4">PnL SOL</th>
-                <th className="text-right pb-4">Consensus</th>
-              </tr>
-            </thead>
-            <tbody>
-              {positions.map((pos, i) => {
-                const pnlColor = pos.pnlPct >= 0 ? 'text-green-400' : 'text-red-400';
-                const pnlPrefix = pos.pnlPct >= 0 ? '+' : '';
-
-                return (
-                  <tr key={i} className="border-b border-gray-800 hover:bg-white/5 transition">
-                    <td className="py-6 font-bold text-purple-400">{pos.token || pos.mint.slice(0, 8)}</td>
-                    <td>{pos.amount?.toFixed(2)}</td>
-                    <td>${pos.avgBuyPrice?.toFixed(6)}</td>
-                    <td className="text-yellow-400 font-bold">
-                      ${pos.currentPrice?.toFixed(6) || '-.--'}
-                    </td>
-                    <td className={`font-black text-2xl ${pnlColor}`}>
-                      {pos.pnlPct ? `${pnlPrefix}${pos.pnlPct.toFixed(1)}%` : '-'}
-                    </td>
-                    <td className={`font-bold text-xl ${pnlColor}`}>
-                      {pos.pnlSol ? `${pnlPrefix}${pos.pnlSol.toFixed(3)} SOL` : '-'}
-                    </td>
-                    <td className="text-right">
-                      <MultiplierBadge count={pos.alphaCount || 1} multiplier={pos.targetMultiplier || 100} />
-                    </td>
-                  </tr>
-                );
-              })}
-              {positions.length === 0 && (
-                <tr>
-                  <td colSpan="7" className="py-12 text-center text-gray-400 text-xl">
-                    No live positions — waiting for alpha consensus...
-                  </td>
+        {positions.length === 0 ? (
+          <div className="card p-20 text-center text-gray-400">
+            <p className="text-2xl">No live positions — waiting for alpha consensus...</p>
+          </div>
+        ) : (
+          <div className="card">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-gray-400 border-b border-gray-700">
+                  <th className="pb-4">Token</th>
+                  <th className="pb-4">Amount</th>
+                  <th className="pb-4">Avg Buy</th>
+                  <th className="pb-4">Current</th>
+                  <th className="pb-4">PnL %</th>
+                  <th className="pb-4">PnL SOL</th>
+                  <th className="text-right pb-4">Consensus</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {positions.map((pos, i) => {
+                  const pnlColor = pos.pnlPct >= 0 ? 'text-green-400' : 'text-red-400'
+                  const prefix = pos.pnlPct >= 0 ? '+' : ''
+                  return (
+                    <tr key={i} className="border-b border-gray-800 hover:bg-white/5 transition">
+                      <td className="py-6 font-bold text-purple-400">{pos.token || pos.mint?.slice(0,8)}</td>
+                      <td>{pos.amount?.toFixed(2) || '0'}</td>
+                      <td>${pos.avgBuyPrice?.toFixed(6) || '0'}</td>
+                      <td className="text-yellow-400 font-bold">${pos.currentPrice?.toFixed(6) || '-'}</td>
+                      <td className={`font-black text-2xl ${pnlColor}`}>
+                        {pos.pnlPct ? `${prefix}${pos.pnlPct.toFixed(1)}%` : '-'}
+                      </td>
+                      <td className={`font-bold text-xl ${pnlColor}`}>
+                        {pos.pnlSol ? `${prefix}${pos.pnlSol.toFixed(3)} SOL` : '-'}
+                      </td>
+                      <td className="text-right">
+                        <MultiplierBadge count={pos.alphaCount || 1} multiplier={pos.targetMultiplier || 100} />
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Recent Trades */}
       <div>
         <h2 className="text-4xl font-bold mb-8 text-center">Recent Trades</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-          {trades.map((trade, i) => (
-            <TradeCard key={i} trade={trade} />
-          ))}
-          {trades.length === 0 && (
-            <div className="col-span-full text-center py-20">
-              <p className="text-2xl text-gray-400">No trades yet — add alphas in Settings and wait for consensus...</p>
-            </div>
-          )}
-        </div>
+        {trades.length === 0 ? (
+          <div className="col-span-full text-center py-20">
+            <p className="text-2xl text-gray-400">No trades yet — add alphas and moonshots...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+            {trades.map((trade, i) => (
+              <TradeCard key={i} trade={trade} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
