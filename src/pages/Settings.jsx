@@ -26,29 +26,26 @@ export default function Settings() {
     loadData()
   }, [])
 
-  // Add wallet
-  const addWallet = async () => {
-    if (!newWallet.trim() || newWallet.length < 32) return alert("Invalid wallet address")
-    setLoading(true)
-    try {
-      await API.post('/api/wallet', { wallet: newWallet.trim(), action: "add" })
-      setWallets([...wallets, newWallet.trim()])
-      setNewWallet('')
-    } catch (err) {
-      alert("Failed to add wallet")
-    }
-    setLoading(false)
+const addWallet = async () => {
+  if (!newWallet.trim() || newWallet.length < 32) return alert("Invalid wallet");
+  try {
+    await API.post('/api/wallet', { wallet: newWallet.trim(), action: "add" });
+    setWallets([...wallets, newWallet.trim()]);
+    setNewWallet('');
+    alert("Wallet added + Helius synced!");
+  } catch (err) {
+    alert("Failed to add wallet");
   }
+};
 
-  // Remove wallet
-  const removeWallet = async (walletToRemove) => {
-    try {
-      await API.post('/api/wallet', { wallet: walletToRemove, action: "remove" })
-      setWallets(wallets.filter(w => w !== walletToRemove))
-    } catch (err) {
-      alert("Failed to remove wallet")
-    }
-  }
+const removeWallet = async (walletToRemove) => {
+  try {
+    await API.post('/api/wallet', { wallet: walletToRemove, action: "remove" });
+    setWallets(wallets.filter(w => w !== walletToRemove));
+    alert("Wallet removed + Helius synced!");
+  } catch (err) {
+    alert("Failed to remove wallet");
+  }};
 
   // Save settings
   const saveSettings = async () => {
